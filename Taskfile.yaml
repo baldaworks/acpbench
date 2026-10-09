@@ -1,0 +1,28 @@
+version: '3'
+
+vars:
+  BINARY_NAME: acpbench
+  MAIN_PATH: ./cmd/acpbench
+  OUTPUT_DIR: bin
+
+tasks:
+  default:
+    desc: Build acpbench binary
+    cmds:
+      - mkdir -p {{.OUTPUT_DIR}}
+      - go build -o {{.OUTPUT_DIR}}/{{.BINARY_NAME}} {{.MAIN_PATH}}
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v -race ./...
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - go tool golangci-lint run ./...
+
+  security:
+    desc: Run govulncheck security check
+    cmds:
+      - go tool govulncheck ./...
