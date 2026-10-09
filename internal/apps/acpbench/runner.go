@@ -105,7 +105,6 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 		firstChunk   time.Time
 		chunkCount   int
 		totalChars   int
-		usageTokens  int
 	)
 
 	t0 := time.Now()
@@ -137,9 +136,6 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 				if notif.Update.AgentThoughtChunk.Content.Text != nil {
 					totalChars += len(notif.Update.AgentThoughtChunk.Content.Text.Text)
 				}
-			}
-			if notif.Update.UsageUpdate != nil && notif.Update.UsageUpdate.Used > 0 {
-				usageTokens = notif.Update.UsageUpdate.Used
 			}
 		},
 	})
@@ -207,10 +203,8 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 		if promptResp.Usage.ThoughtTokens != nil {
 			tokens += *promptResp.Usage.ThoughtTokens
 		}
-	case usageTokens > 0:
-		tokens = usageTokens
 	case totalChars > 0:
-		// Estimate ~4 chars per token if server doesn't report usage tokens
+		// Estimate ~4 chars per token if server doesn't report per-turn output tokens
 		tokens = int(math.Ceil(float64(totalChars) / 4.0))
 	}
 	metrics.OutputTokens = tokens
