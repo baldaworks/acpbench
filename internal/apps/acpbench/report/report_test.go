@@ -29,6 +29,10 @@ func TestWriteJSONAndHuman(t *testing.T) {
 				PromptDuration:  acpbench.DurationMillis(340 * time.Millisecond),
 				TotalDuration:   acpbench.DurationMillis(421 * time.Millisecond),
 				ChunkCount:      16,
+				OutputTokens:    100,
+				ThoughtTokens:   40,
+				GeneratedTokens: 140,
+				TPS:             70,
 				StopReason:      "end_turn",
 				ToolMetrics: map[string]acpbench.ToolExecutionMetric{
 					"read_file": {
@@ -69,5 +73,11 @@ func TestWriteJSONAndHuman(t *testing.T) {
 	}
 	if !strings.Contains(humanStr, "read_file") {
 		t.Errorf("missing tool breakdown in human output: %s", humanStr)
+	}
+	if !strings.Contains(humanStr, "Output  Thought  Generated") {
+		t.Errorf("missing separate token columns in human output: %s", humanStr)
+	}
+	if !strings.Contains(jsonStr, `"thought_tokens": 40`) || !strings.Contains(jsonStr, `"generated_tokens": 140`) {
+		t.Errorf("missing token breakdown in JSON output: %s", jsonStr)
 	}
 }

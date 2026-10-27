@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	acp "github.com/coder/acp-go-sdk"
 	"github.com/baldaworks/acpbench/internal/acpclient"
 	"github.com/baldaworks/acpbench/internal/apps/appio"
 	"github.com/baldaworks/acpbench/internal/logging"
+	acp "github.com/coder/acp-go-sdk"
 	"github.com/rs/zerolog"
 )
 
@@ -101,10 +101,12 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 	defer cancel()
 
 	var (
-		mu           sync.Mutex
-		firstChunk   time.Time
-		chunkCount   int
-		totalChars   int
+		mu                sync.Mutex
+		firstMessageChunk time.Time
+		firstThoughtChunk time.Time
+		chunkCount        int
+		messageChars      int
+		thoughtChars      int
 	)
 
 	t0 := time.Now()
@@ -122,19 +124,19 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 
 			if notif.Update.AgentMessageChunk != nil {
 				chunkCount++
-				if firstChunk.IsZero() {
-					firstChunk = time.Now()
+				if firstMessageChunk.IsZero() {
+					firstMessageChunk = time.Now()
 				}
 				if notif.Update.AgentMessageChunk.Content.Text != nil {
-					totalChars += len(notif.Update.AgentMessageChunk.Content.Text.Text)
+					messageChars += len(notif.Update.AgentMessageChunk.Content.Text.Text)
 				}
 			} else if notif.Update.AgentThoughtChunk != nil {
 				chunkCount++
-				if firstChunk.IsZero() {
-					firstChunk = time.Now()
+				if firstThoughtChunk.IsZero() {
+					firstThoughtChunk = time.Now()
 				}
 				if notif.Update.AgentThoughtChunk.Content.Text != nil {
-					totalChars += len(notif.Update.AgentThoughtChunk.Content.Text.Text)
+					thoughtChars += len(notif.Update.AgentThoughtChunk.Content.Text.Text)
 				}
 			}
 		},
@@ -192,30 +194,19 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 
 	mu.Lock()
 	metrics.ChunkCount = chunkCount
-	if !firstChunk.IsZero() {
-		metrics.TTFT = DurationMillis(firstChunk.Sub(promptStart))
+	if !firstMessageChunk.IsZero() {
+		metrics.TTFT = DurationMillis(firstMessageChunk.Sub(promptStart))
 	}
-	// Determine output token count
-	tokens := 0
-	switch {
-	case promptResp.Usage != nil && promptResp.Usage.OutputTokens > 0:
-		tokens = promptResp.Usage.OutputTokens
-		if promptResp.Usage.ThoughtTokens != nil {
-			tokens += *promptResp.Usage.ThoughtTokens
-		}
-	case totalChars > 0:
-		// Estimate ~4 chars per token if server doesn't report per-turn output tokens
-		tokens = int(math.Ceil(float64(totalChars) / 4.0))
-	}
-	metrics.OutputTokens = tokens
+	outputTokens, thoughtTokens := resolveTokenCounts(promptResp.Usage, messageChars, thoughtChars)
+	generatedTokens := outputTokens + thoughtTokens
+	metrics.OutputTokens = outputTokens
+	metrics.ThoughtTokens = thoughtTokens
+	metrics.GeneratedTokens = generatedTokens
 
-	// Calculate generation duration: prompt duration minus TTFT (or total prompt if TTFT is 0)
-	generationDur := promptDur
-	if !firstChunk.IsZero() && promptEnd.After(firstChunk) {
-		generationDur = promptEnd.Sub(firstChunk)
-	}
-	if tokens > 0 && generationDur > 0 {
-		metrics.TPS = float64(tokens) / generationDur.Seconds()
+	generationStart := resolveGenerationStart(promptStart, firstMessageChunk, firstThoughtChunk, thoughtTokens)
+	generationDur := promptEnd.Sub(generationStart)
+	if generatedTokens > 0 && generationDur > 0 {
+		metrics.TPS = float64(generatedTokens) / generationDur.Seconds()
 	}
 	mu.Unlock()
 
@@ -231,6 +222,51 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 	metrics.TotalDuration = DurationMillis(time.Since(t0))
 
 	return metrics, nil
+}
+
+func resolveTokenCounts(usage *acp.Usage, messageChars, thoughtChars int) (outputTokens, thoughtTokens int) {
+	outputTokens = estimateTokens(messageChars)
+	thoughtTokens = estimateTokens(thoughtChars)
+
+	if usage == nil {
+		return outputTokens, thoughtTokens
+	}
+	if usage.OutputTokens > 0 {
+		outputTokens = usage.OutputTokens
+	}
+	if usage.ThoughtTokens != nil && *usage.ThoughtTokens > 0 {
+		thoughtTokens = *usage.ThoughtTokens
+	}
+
+	return outputTokens, thoughtTokens
+}
+
+func estimateTokens(chars int) int {
+	if chars <= 0 {
+		return 0
+	}
+	return int(math.Ceil(float64(chars) / 4.0))
+}
+
+func resolveGenerationStart(promptStart, firstMessageChunk, firstThoughtChunk time.Time, thoughtTokens int) time.Time {
+	// If the server reports reasoning tokens without streaming thought chunks,
+	// prompt dispatch is the only safe lower bound for their generation start.
+	if thoughtTokens > 0 && firstThoughtChunk.IsZero() {
+		return promptStart
+	}
+
+	switch {
+	case firstMessageChunk.IsZero():
+		if !firstThoughtChunk.IsZero() {
+			return firstThoughtChunk
+		}
+	case firstThoughtChunk.IsZero(), firstMessageChunk.Before(firstThoughtChunk):
+		return firstMessageChunk
+	default:
+		return firstThoughtChunk
+	}
+
+	return promptStart
 }
 
 func applySessionConfig(ctx context.Context, client *acpclient.Client, sessionResp acp.NewSessionResponse, model, reasoningEffort string) error {
