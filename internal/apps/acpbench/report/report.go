@@ -61,11 +61,11 @@ func WriteHuman(w io.Writer, rep *acpbench.BenchmarkReport) error {
 		return err
 	}
 	if hasConfig {
-		if _, err := fmt.Fprintln(w, "Run  Spawn (ms)  Init (ms)  Session (ms)  Config (ms)  TTFT (ms)  Tool Wall (ms)  Prompt (ms)  Total (ms)  Tokens     TPS  Chunks  Stop Reason"); err != nil {
+		if _, err := fmt.Fprintln(w, "Run  Spawn (ms)  Init (ms)  Session (ms)  Config (ms)  TTFT (ms)  Tool Wall (ms)  Prompt (ms)  Total (ms)  Output  Thought  Generated     TPS  Chunks  Stop Reason"); err != nil {
 			return err
 		}
 	} else {
-		if _, err := fmt.Fprintln(w, "Run  Spawn (ms)  Init (ms)  Session (ms)  TTFT (ms)  Tool Wall (ms)  Prompt (ms)  Total (ms)  Tokens     TPS  Chunks  Stop Reason"); err != nil {
+		if _, err := fmt.Fprintln(w, "Run  Spawn (ms)  Init (ms)  Session (ms)  TTFT (ms)  Tool Wall (ms)  Prompt (ms)  Total (ms)  Output  Thought  Generated     TPS  Chunks  Stop Reason"); err != nil {
 			return err
 		}
 	}
@@ -83,7 +83,7 @@ func WriteHuman(w io.Writer, rep *acpbench.BenchmarkReport) error {
 		}
 
 		if hasConfig {
-			if _, err := fmt.Fprintf(w, "%-3d  %10.1f  %9.1f  %12.1f  %11.1f  %9.1f  %14.1f  %11.1f  %10.1f  %6d  %6.1f  %6d  %s\n",
+			if _, err := fmt.Fprintf(w, "%-3d  %10.1f  %9.1f  %12.1f  %11.1f  %9.1f  %14.1f  %11.1f  %10.1f  %6d  %7d  %9d  %6.1f  %6d  %s\n",
 				r.Iteration,
 				toMillis(r.SpawnDuration),
 				toMillis(r.InitDuration),
@@ -94,6 +94,8 @@ func WriteHuman(w io.Writer, rep *acpbench.BenchmarkReport) error {
 				toMillis(r.PromptDuration),
 				toMillis(r.TotalDuration),
 				r.OutputTokens,
+				r.ThoughtTokens,
+				r.GeneratedTokens,
 				r.TPS,
 				r.ChunkCount,
 				stopReason,
@@ -101,7 +103,7 @@ func WriteHuman(w io.Writer, rep *acpbench.BenchmarkReport) error {
 				return err
 			}
 		} else {
-			if _, err := fmt.Fprintf(w, "%-3d  %10.1f  %9.1f  %12.1f  %9.1f  %14.1f  %11.1f  %10.1f  %6d  %6.1f  %6d  %s\n",
+			if _, err := fmt.Fprintf(w, "%-3d  %10.1f  %9.1f  %12.1f  %9.1f  %14.1f  %11.1f  %10.1f  %6d  %7d  %9d  %6.1f  %6d  %s\n",
 				r.Iteration,
 				toMillis(r.SpawnDuration),
 				toMillis(r.InitDuration),
@@ -111,6 +113,8 @@ func WriteHuman(w io.Writer, rep *acpbench.BenchmarkReport) error {
 				toMillis(r.PromptDuration),
 				toMillis(r.TotalDuration),
 				r.OutputTokens,
+				r.ThoughtTokens,
+				r.GeneratedTokens,
 				r.TPS,
 				r.ChunkCount,
 				stopReason,

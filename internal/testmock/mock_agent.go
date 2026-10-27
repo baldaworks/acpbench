@@ -121,8 +121,14 @@ func (m *MockAgent) Prompt(ctx context.Context, req acp.PromptRequest) (acp.Prom
 		})
 	}
 
+	thoughtTokens := 5
 	return acp.PromptResponse{
 		StopReason: acp.StopReasonEndTurn,
+		Usage: &acp.Usage{
+			OutputTokens:  3,
+			ThoughtTokens: &thoughtTokens,
+			TotalTokens:   8,
+		},
 	}, nil
 }
 

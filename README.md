@@ -17,10 +17,10 @@
 | **Initialize Latency** | Duration of the ACP `Initialize` handshake RPC. |
 | **Session Creation** | Duration of the `NewSession` RPC call. |
 | **Session Configuration** | Configures `--model` and `--reasoning-effort` via `SetSessionConfigOption`. |
-| **TTFT (Time To First Token)** | Latency from prompt dispatch until the first message or thought chunk arrives. |
+| **TTFT (Time To First Token)** | User-visible latency from prompt dispatch until the first agent message chunk arrives. Reasoning chunks do not end TTFT. |
 | **Tool Wall Time** | Aggregated wall-clock time spent executing tools (with overlapping interval merging). |
 | **Per-Tool Breakdown** | Total elapsed wall time and call counts per tool (e.g., `bash`, `read_file`). |
-| **Throughput (TPS)** | Tokens Per Second generation rate (`tokens / (PromptDuration - TTFT)`). |
+| **Throughput (TPS)** | Generated tokens per second, including both output and reasoning tokens. Timing starts at the first streamed message or thought chunk; when reasoning tokens are reported but thoughts are not streamed, it conservatively starts at prompt dispatch. |
 | **Summary Statistics** | Calculates Min, Mean, Max, and Standard Deviation across measured iterations. |
 | **Output Formats** | Clean human-readable CLI tables or machine-readable JSON (`--json`). |
 
@@ -87,9 +87,9 @@ Warmup:           1 run(s)
 Iterations:       2 run(s)
 
 Benchmark Runs:
-Run  Spawn (ms)  Init (ms)  Session (ms)  Config (ms)  TTFT (ms)  Tool Wall (ms)  Prompt (ms)  Total (ms)  Tokens     TPS  Chunks  Stop Reason
-1           1.6        5.8           0.5          0.0        6.0            10.6         28.2        36.2       6   270.0       2  end_turn
-2           1.7        0.9           0.3          0.0        5.8            13.2         29.3        32.2       6   255.6       2  end_turn
+Run  Spawn (ms)  Init (ms)  Session (ms)  Config (ms)  TTFT (ms)  Tool Wall (ms)  Prompt (ms)  Total (ms)  Output  Thought  Generated     TPS  Chunks  Stop Reason
+1           1.6        5.8           0.5          0.0        6.0            10.6         28.2        36.2       6        4         10   270.0       2  end_turn
+2           1.7        0.9           0.3          0.0        5.8            13.2         29.3        32.2       6        4         10   255.6       2  end_turn
 
 Summary Statistics (2 measured runs):
 Metric                Min (ms)     Mean (ms)      Max (ms)    StdDev (ms)

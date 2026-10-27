@@ -54,6 +54,12 @@ func TestEndToEndBenchmark(t *testing.T) {
 		if r.TTFT <= 0 {
 			t.Errorf("run %d expected positive TTFT, got %v", i+1, r.TTFT)
 		}
+		if r.OutputTokens != 3 || r.ThoughtTokens != 5 || r.GeneratedTokens != 8 {
+			t.Errorf("run %d unexpected token breakdown: output=%d thought=%d generated=%d", i+1, r.OutputTokens, r.ThoughtTokens, r.GeneratedTokens)
+		}
+		if r.TPS <= 0 {
+			t.Errorf("run %d expected positive TPS, got %f", i+1, r.TPS)
+		}
 		if r.ToolWallTime <= 0 {
 			t.Errorf("run %d expected positive ToolWallTime, got %v", i+1, r.ToolWallTime)
 		}

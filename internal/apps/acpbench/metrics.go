@@ -46,14 +46,16 @@ type IterationMetrics struct {
 	InitDuration    DurationMillis                 `json:"init_duration_ms"`
 	SessionDuration DurationMillis                 `json:"session_duration_ms"`
 	ConfigDuration  DurationMillis                 `json:"config_duration_ms,omitempty"`
-	TTFT            DurationMillis                 `json:"ttft_ms"` // Time To First Token / Chunk
+	TTFT            DurationMillis                 `json:"ttft_ms"` // Time to first visible agent message chunk.
 	ToolWallTime    DurationMillis                 `json:"tool_wall_duration_ms"`
 	ToolMetrics     map[string]ToolExecutionMetric `json:"tool_metrics,omitempty"`
 	PromptDuration  DurationMillis                 `json:"prompt_duration_ms"`
 	TotalDuration   DurationMillis                 `json:"total_duration_ms"`
 	ChunkCount      int                            `json:"chunk_count"`
 	OutputTokens    int                            `json:"output_tokens"`
-	TPS             float64                        `json:"tps"` // Tokens Per Second
+	ThoughtTokens   int                            `json:"thought_tokens"`
+	GeneratedTokens int                            `json:"generated_tokens"`
+	TPS             float64                        `json:"tps"` // Generated tokens (output + thought) per second.
 	StopReason      string                         `json:"stop_reason,omitempty"`
 	Error           string                         `json:"error,omitempty"`
 }
