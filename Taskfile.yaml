@@ -26,3 +26,51 @@ tasks:
     desc: Run govulncheck security check
     cmds:
       - go tool govulncheck ./...
+
+  bench:codex-api-key:
+    desc: Benchmark Codex with OPENAI_API_KEY from .env
+    deps: [default]
+    cmds:
+      - |
+        test -f .env || { echo "Create .env with OPENAI_API_KEY" >&2; exit 1; }
+        unset OPENAI_API_KEY
+        set -a
+        . ./.env
+        set +a
+        test -n "$OPENAI_API_KEY" || { echo "Set OPENAI_API_KEY in .env" >&2; exit 1; }
+        ./bin/acpbench -m gpt-6.1-sol -r medium \
+          --prompt "Explain how goroutines and channels work with code examples. Don't use skills" \
+          -- codex-acp \
+          --codex-args=-c --codex-args='model_provider="acpbench_openai"' \
+          --codex-args=-c --codex-args='model_providers.acpbench_openai.name="OpenAI API key"' \
+          --codex-args=-c --codex-args='model_providers.acpbench_openai.base_url="https://api.openai.com/v1"' \
+          --codex-args=-c --codex-args='model_providers.acpbench_openai.env_key="OPENAI_API_KEY"' \
+          --codex-args=-c --codex-args='model_providers.acpbench_openai.wire_api="responses"' \
+          --message-streaming=true --reasoning-thoughts=both
+
+  bench:codex:
+    desc: Benchmark Codex with the current global configuration
+    deps: [default]
+    cmds:
+      - >-
+        ./bin/acpbench -m gpt-6.1-sol -r medium
+        --prompt "Explain how goroutines and channels work with code examples. Don't use skills"
+        -- codex-acp --message-streaming=true --reasoning-thoughts=both
+
+  bench:gemini:
+    desc: Benchmark Gemini through antigravity-acp
+    deps: [default]
+    cmds:
+      - >-
+        ./bin/acpbench -m gemini-3.8-flash-medium
+        --prompt "Explain how goroutines and channels work with code examples. Don't use skills"
+        -- npx -y @baldaworks/acprun antigravity-acp
+
+  bench:opencode-free:
+    desc: Benchmark DeepSeek V4.1 Flash Free through OpenCode
+    deps: [default]
+    cmds:
+      - >-
+        ./bin/acpbench -n 10 -t 2m -m opencode/deepseek-v4.1-flash-free
+        --prompt "Explain how goroutines and channels work with code examples. Don't use skills. Do not call any tools. Answer directly."
+        -- opencode acp
