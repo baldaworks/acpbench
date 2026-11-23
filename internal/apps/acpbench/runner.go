@@ -2,6 +2,7 @@ package acpbench
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -113,7 +114,11 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 
 	// 1. Spawn Process & Setup Client
 	spawnStart := time.Now()
-	client, err := acpclient.New(iterCtx, acpclient.Config{
+	if err := iterCtx.Err(); err != nil {
+		return metrics, err
+	}
+	// Keep the transport alive after the prompt deadline so cleanup can finish.
+	client, err := acpclient.New(context.WithoutCancel(iterCtx), acpclient.Config{
 		Command:    cfg.Command,
 		WorkingDir: cfg.WorkingDir,
 		Stderr:     stderr,
@@ -152,7 +157,7 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 
 	// 2. ACP Initialize Handshake
 	initStart := time.Now()
-	_, err = client.Initialize(iterCtx)
+	initResp, err := client.Initialize(iterCtx)
 	if err != nil {
 		return metrics, fmt.Errorf("initialize acp client: %w", err)
 	}
@@ -165,6 +170,25 @@ func executeIteration(ctx context.Context, cfg BenchmarkConfig, iterationNum int
 		return metrics, fmt.Errorf("create acp session: %w", err)
 	}
 	metrics.SessionDuration = DurationMillis(time.Since(sessionStart))
+
+	caps := initResp.AgentCapabilities.SessionCapabilities
+	if caps.Delete == nil {
+		_, _ = fmt.Fprintf(stderr, "warning: agent does not advertise session/delete; benchmark session %q may remain in its history\n", sessionResp.SessionId)
+	}
+	defer func() {
+		cleanupCtx, stop := context.WithTimeout(context.WithoutCancel(iterCtx), 5*time.Second)
+		defer stop()
+		var cleanupErr error
+		switch {
+		case caps.Delete != nil:
+			cleanupErr = client.DeleteSession(cleanupCtx, sessionResp.SessionId)
+		case caps.Close != nil:
+			cleanupErr = client.CloseSession(cleanupCtx, sessionResp.SessionId)
+		}
+		if cleanupErr != nil {
+			err = errors.Join(err, fmt.Errorf("clean up benchmark session %q: %w", sessionResp.SessionId, cleanupErr))
+		}
+	}()
 
 	// 4. Session Configuration (Model & Reasoning Effort)
 	configStart := time.Now()

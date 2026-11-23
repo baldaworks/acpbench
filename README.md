@@ -9,6 +9,8 @@
 
 `acpbench` starts any stdio Agent Client Protocol (ACP) server command, establishes a session, applies optional model and reasoning configurations, sends benchmark prompt turn(s), gathers timing and throughput metrics, and outputs structured performance tables or JSON.
 
+Each warmup and measured run uses a new session. After the run, acpbench deletes that session if the agent advertises `session/delete`. If deletion is unsupported, acpbench warns on stderr that the session may remain and continues. Where available, it uses `session/close` to release the live session when deletion is unsupported. Cleanup time is excluded from benchmark timings.
+
 ## What You Get
 
 | Metric / Capability | Description |
