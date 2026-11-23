@@ -288,6 +288,18 @@ func (c *Client) NewSession(ctx context.Context, cwd string) (acp.NewSessionResp
 	})
 }
 
+// DeleteSession removes a benchmark session from an agent advertising session/delete.
+func (c *Client) DeleteSession(ctx context.Context, id acp.SessionId) error {
+	_, err := c.conn.UnstableDeleteSession(ctx, acp.UnstableDeleteSessionRequest{SessionId: id})
+	return err
+}
+
+// CloseSession releases a live session on agents that advertise session/close.
+func (c *Client) CloseSession(ctx context.Context, id acp.SessionId) error {
+	_, err := c.conn.CloseSession(ctx, acp.CloseSessionRequest{SessionId: id})
+	return err
+}
+
 // SetSessionConfigOption sets a configuration option on the session.
 func (c *Client) SetSessionConfigOption(ctx context.Context, sessionID acp.SessionId, configID acp.SessionConfigId, valueID acp.SessionConfigValueId) (acp.SetSessionConfigOptionResponse, error) {
 	req := acp.SetSessionConfigOptionRequest{
